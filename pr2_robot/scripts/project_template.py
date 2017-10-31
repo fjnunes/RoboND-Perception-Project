@@ -59,11 +59,11 @@ def pcl_callback(pcl_msg):
     LEAF_SIZE = 0.01
     # Set the voxel (or leaf) size
     vox.set_leaf_size(LEAF_SIZE, LEAF_SIZE, LEAF_SIZE)
-    cloud_filtered = vox.filter()
+    downsampled = vox.filter()
 
     # Outlier Removal Filter
     # Much like the previous filters, we start by creating a filter object:
-    outlier_filter = cloud_filtered.make_statistical_outlier_filter()
+    outlier_filter = downsampled.make_statistical_outlier_filter()
     # Set the number of neighboring points to analyze for any given point
     outlier_filter.set_mean_k(50)
     # Set threshold scale factor
@@ -71,20 +71,20 @@ def pcl_callback(pcl_msg):
     # Any point with a mean distance larger than global (mean distance+x*std_dev) will be considered outlier
     outlier_filter.set_std_dev_mul_thresh(x)
     # Finally call the filter function for magic
-    cloud_filtered = outlier_filter.filter()
+    outliers_removed = outlier_filter.filter()
 
     # PassThrough Filter
-    passthrough = cloud_filtered.make_passthrough_filter()
+    passthrough = outliers_removed.make_passthrough_filter()
     # Assign axis and range to the passthrough filter object.
     filter_axis = 'z'
     passthrough.set_filter_field_name(filter_axis)
     axis_min = 0.6
     axis_max = 1.1
     passthrough.set_filter_limits(axis_min, axis_max)
-    cloud_filtered = passthrough.filter()
+    passed = passthrough.filter()
 
     # RANSAC Plane Segmentation
-    seg = cloud_filtered.make_segmenter()
+    seg = passed.make_segmenter()
     seg.set_model_type(pcl.SACMODEL_PLANE)
     seg.set_method_type(pcl.SAC_RANSAC)
 
@@ -132,11 +132,15 @@ def pcl_callback(pcl_msg):
     cluster_cloud.from_list(color_cluster_point_list)
 
     # Convert PCL data to ROS messages
+    ros_outliers_removed = pcl_to_ros(outliers_removed)
+    ros_passed = pcl_to_ros(passed)
     ros_cloud_objects = pcl_to_ros(cloud_objects)
     ros_cloud_table = pcl_to_ros(cloud_table)
     ros_cluster_cloud = pcl_to_ros(cluster_cloud)
 
     # Publish ROS messages
+    pcl_outliers_removed_pub.publish(ros_outliers_removed)
+    pcl_passed_pub.publish(ros_outliers_removed)
     pcl_objects_pub.publish(ros_cloud_objects)
     pcl_table_pub.publish(ros_cloud_table)
     pcl_cluster_pub.publish(ros_cluster_cloud)
@@ -235,6 +239,8 @@ if __name__ == '__main__':
     # Create Subscribers
     pcl_sub = rospy.Subscriber("/pr2/world/points", pc2.PointCloud2, pcl_callback, queue_size=1)
     # Create Publishers
+    pcl_outliers_removed_pub = rospy.Publisher("/pcl_outliers_removed", PointCloud2, queue_size=1)
+    pcl_passed_pub = rospy.Publisher("/pcl_passed", PointCloud2, queue_size=1)
     pcl_objects_pub = rospy.Publisher("/pcl_objects", PointCloud2, queue_size=1)
     pcl_table_pub = rospy.Publisher("/pcl_table", PointCloud2, queue_size=1)
     pcl_cluster_pub = rospy.Publisher("/pcl_cluster", PointCloud2, queue_size=1)
