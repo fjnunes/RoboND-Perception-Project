@@ -47,7 +47,7 @@ def send_to_yaml(yaml_filename, dict_list):
         yaml.dump(data_dict, outfile, default_flow_style=False)
 
 # Callback function for your Point Cloud Subscriber
-def pcl_callback(pcl_msg):
+def pcl_callback(ros_msg):
 
 # Exercise-2 TODOs:
 
@@ -82,21 +82,29 @@ def pcl_callback(pcl_msg):
     axis_max = 1.1
     passthrough.set_filter_limits(axis_min, axis_max)
     passed = passthrough.filter()
+    # Limiting on the Y axis too to avoid having the bins recognized as snacks
+    passthrough = passed.make_passthrough_filter()
+    # Assign axis and range to the passthrough filter object.
+    filter_axis = 'y'
+    passthrough.set_filter_field_name(filter_axis)
+    axis_min = -0.45
+    axis_max = +0.45
+    passthrough.set_filter_limits(axis_min, axis_max)
+    passed = passthrough.filter()
 
     # RANSAC Plane Segmentation
     seg = passed.make_segmenter()
     seg.set_model_type(pcl.SACMODEL_PLANE)
     seg.set_method_type(pcl.SAC_RANSAC)
-
     max_distance = 0.01
     seg.set_distance_threshold(max_distance)
     inliers, coefficients = seg.segment()
 
     # Extract inliers and outliers
     # Extract inliers - tabletop
-    cloud_table = cloud_filtered.extract(inliers, negative=False)
+    cloud_table = passed.extract(inliers, negative=False)
     # Extract outliers - objects
-    cloud_objects = cloud_filtered.extract(inliers, negative=True)
+    cloud_objects = passed.extract(inliers, negative=True)
 
     # Euclidean Clustering
     white_cloud = XYZRGB_to_XYZ(cloud_objects)
@@ -140,7 +148,7 @@ def pcl_callback(pcl_msg):
 
     # Publish ROS messages
     pcl_outliers_removed_pub.publish(ros_outliers_removed)
-    pcl_passed_pub.publish(ros_outliers_removed)
+    pcl_passed_pub.publish(ros_passed)
     pcl_objects_pub.publish(ros_cloud_objects)
     pcl_table_pub.publish(ros_cloud_table)
     pcl_cluster_pub.publish(ros_cluster_cloud)
