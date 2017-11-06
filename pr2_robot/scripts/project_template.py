@@ -231,7 +231,7 @@ def pr2_mover(object_list):
 
     # TODO: Rotate PR2 in place to capture side tables for the collision map
 
-    # Loop through the pick list
+    # Loop through the detected objects
     for object in object_list:
         # Get the PointCloud for a given object and obtain it's centroid
         points_arr = ros_to_pcl(object.cloud).to_array()
@@ -242,7 +242,7 @@ def pr2_mover(object_list):
         # Get corresponding dropbox param
         dropbox_param = dropbox_param_dict[object_param['group']]
 
-        object_name.data = object.label
+        object_name.data = str(object.label)
 
         # TODO: Create 'pick_pose' for the object
         pick_pose.position.x = np.asscalar(centroid[0])
@@ -255,7 +255,7 @@ def pr2_mover(object_list):
 
         # TODO: Create 'place_pose' for the object
         # Location on the dropbox + incremental offset so things don't pile up
-        position = dropbox_param['position'] #+ np.random.rand(3)/10
+        position = dropbox_param['position'] + np.random.rand(3)/10
         place_pose.position.x = float(position[0])
         place_pose.position.y = float(position[1])
         place_pose.position.z = float(position[2])
@@ -265,7 +265,7 @@ def pr2_mover(object_list):
         place_pose.orientation.w = 0.0
 
         # Assign the arm and droppbox side to be used for pick_place
-        arm_name.data = dropbox_param['name']
+        arm_name.data = str(dropbox_param['name'])
 
         # Create a list of dictionaries (made with make_yaml_dict()) for later output to yaml format
         # Populate various ROS messages
