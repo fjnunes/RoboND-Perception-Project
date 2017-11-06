@@ -43,13 +43,14 @@ def make_yaml_dict(test_scene_num, arm_name, object_name, pick_pose, place_pose)
 # Helper function to output to yaml file
 def send_to_yaml(yaml_filename, dict_list):
     data_dict = {"object_list": dict_list}
+    print(data_dict)
     with open(yaml_filename, 'w') as outfile:
         yaml.dump(data_dict, outfile, default_flow_style=False)
 
 # Callback function for your Point Cloud Subscriber
 def pcl_callback(ros_msg):
 
-# Exercise-2 TODOs:
+# Exercise-2:
 
     # Convert ROS msg to PCL data
     plc_msg = ros_to_pcl(ros_msg)
@@ -153,7 +154,7 @@ def pcl_callback(ros_msg):
     pcl_table_pub.publish(ros_cloud_table)
     pcl_cluster_pub.publish(ros_cluster_cloud)
 
-# Exercise-3 TODOs:
+# Exercise-3:
 
     # Classify the clusters! (loop through each detected cluster one at a time)
     detected_objects_labels = []
@@ -205,13 +206,14 @@ def pcl_callback(ros_msg):
 def pr2_mover(object_list):
 
     # Initialize variables
+    WORLD_ID = 3
     test_scene_num = Int32()
+    test_scene_num.data = WORLD_ID
     object_name = String()
     arm_name = String()
     pick_pose = Pose()
     place_pose = Pose()
     dict_list = []
-    side = 0 # 0 - left 1 - right
 
     # Get/Read parameters
     object_list_param = rospy.get_param('/object_list')
@@ -220,11 +222,11 @@ def pr2_mover(object_list):
     # Parse parameters into individual variables
     # Transform parameter list in dictionaries
     object_param_dict = {}
-    for idx in range(len(0, object_list_param)):
+    for idx in range(0, len(object_list_param)):
         object_param_dict[object_list_param[idx]['name']] = object_list_param[idx]
 
     dropbox_param_dict = {}
-    for idx in range(len(0, dropbox_param_list)):
+    for idx in range(0, len(dropbox_param_list)):
         dropbox_param_dict[dropbox_param_list[idx]['group']] = dropbox_param_list[idx]
 
     # TODO: Rotate PR2 in place to capture side tables for the collision map
@@ -240,14 +242,27 @@ def pr2_mover(object_list):
         # Get corresponding dropbox param
         dropbox_param = dropbox_param_dict[object_param['group']]
 
+        object_name.data = object.label
+
         # TODO: Create 'pick_pose' for the object
-        pick_pose.point = centroid
-        pick_pose.orientation = (0, 0, -pi / 2, 0)
+        pick_pose.position.x = np.asscalar(centroid[0])
+        pick_pose.position.y = np.asscalar(centroid[1])
+        pick_pose.position.z = np.asscalar(centroid[2])
+        pick_pose.orientation.x = 0.0
+        pick_pose.orientation.y = 0.0
+        pick_pose.orientation.z = 0.0
+        pick_pose.orientation.w = 0.0
 
         # TODO: Create 'place_pose' for the object
         # Location on the dropbox + incremental offset so things don't pile up
-        place_pose.point = dropbox_param['position'] + np.random.rand(3)/10
-        place_pose.orientation = (0, 0, 0, 0)
+        position = dropbox_param['position'] #+ np.random.rand(3)/10
+        place_pose.position.x = float(position[0])
+        place_pose.position.y = float(position[1])
+        place_pose.position.z = float(position[2])
+        place_pose.orientation.x = 0.0
+        place_pose.orientation.y = 0.0
+        place_pose.orientation.z = 0.0
+        place_pose.orientation.w = 0.0
 
         # Assign the arm and droppbox side to be used for pick_place
         arm_name.data = dropbox_param['name']
@@ -264,15 +279,14 @@ def pr2_mover(object_list):
             pick_place_routine = rospy.ServiceProxy('pick_place_routine', PickPlace)
 
             # TODO: Insert your message variables to be sent as a service request
-            resp = pick_place_routine(test_scene_num, object_name, arm_name, pick_pose, place_pose)
-
-            print ("Response: ", resp.success)
+            #resp = pick_place_routine(test_scene_num, object_name, arm_name, pick_pose, place_pose)
+            #print ("Response: ", resp.success)
 
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
 
-    # TODO: Output your request parameters into output yaml file
-    send_to_yaml('output.yaml, dict_list)
+    # Output your request parameters into output yaml file
+    send_to_yaml("output_"+str(WORLD_ID)+".yaml", dict_list)
 
 
 if __name__ == '__main__':
